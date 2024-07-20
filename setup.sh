@@ -154,7 +154,7 @@ run_docker_container() {
             fi
         else
             # Run the container without local storage
-            if docker run -d --name container_name -e SDL_AUDIODRIVER=dummy -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY ros2_gazebo ; then
+            if docker run -d --name $container_name -e SDL_AUDIODRIVER=dummy -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY ros2_gazebo ; then
                 enter_running_docker_container "$container_name"
             else
                 echo "Failed to run Docker container. Please check if the image was built successfully."
