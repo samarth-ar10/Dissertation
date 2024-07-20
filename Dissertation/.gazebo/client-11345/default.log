@@ -1,0 +1,20 @@
+Gazebo multi-robot simulator, version 11.10.2
+Copyright (C) 2012 Open Source Robotics Foundation.
+Released under the Apache 2 License.
+http://gazebosim.org
+
+
+(1721187085 536085298) [Msg] Waiting for master.
+(1721187085 536430730) Failed to create connection to remote host[localhost:11345]
+(1721187086 547506956) [Msg] Connected to gazebo master @ http://127.0.0.1:11345
+(1721187086 547722624) [Msg] Publicized address: 172.17.0.2
+(1721187086 548378783) Loaded .ini file from: "/mounted_home/dissertation/.gazebo/gui.ini"
+(1721187086 554144581) [Err] [RenderEngine.cc:749] Can't open display: 
+(1721187086 554172538) [Wrn] [RenderEngine.cc:89] Unable to create X window. Rendering will be disabled
+(1721187086 554190848) [Wrn] [RenderEngine.cc:292] Cannot initialize render engine since render path type is NONE. Ignore this warning ifrendering has been turned off on purpose.
+(1721187086 558023000) [Wrn] [GuiIface.cc:120] could not connect to display 
+(1721187086 558083653) [Msg] Could not load the Qt platform plugin "xcb" in "" even though it was found.
+(1721187086 558114659) [Err] [GuiIface.cc:124] This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: eglfs, linuxfb, minimal, minimalegl, offscreen, vnc, xcb.
+
