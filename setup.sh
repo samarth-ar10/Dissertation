@@ -145,6 +145,7 @@ run_docker_container() {
 
             # Run the container with local storage
             if docker run -d --name "$container_name" \
+                            -e SDL_AUDIODRIVER=dummy -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY \
                            --mount type=bind,source="$storage_path",target=/home/dissertation \
                            ros2_gazebo /bin/bash -c "while :; do sleep 1; done"; then
                 echo "Docker container '$container_name' is running with persistence."

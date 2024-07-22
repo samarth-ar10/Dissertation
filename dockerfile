@@ -1,97 +1,82 @@
-# Use the official Ubuntu 22.04 image as a base
-FROM ubuntu:22.04
+# Use Ubuntu Jammy as the base image
+FROM ubuntu:jammy
 
-# Set environment variables
+# Set the locale to support UTF-8[^1^][1]
+ENV LANG en_US.UTF-8[^2^][2]
+ENV LC_ALL en_US.UTF-8
+# set it as non-interactive
 ENV DEBIAN_FRONTEND=noninteractive
-ENV TZ=Etc/UTC
-ENV SDL_AUDIODRIVER=dummy
 
-# Install dependencies
-RUN apt update && apt install -y \
+# ---------------- universal dependies ----------------
+# Enable the Ubuntu Universe repository
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository universe \
+    && apt-get update
+
+RUN apt-get install -y \
+    curl \
+    lsb-release \
+    gnupg \
+    sudo \
+    wget \
+    git \
+    nano \
     build-essential \
     cmake \
-    git \
-    libboost-all-dev \
-    libssl-dev \
-    pkg-config \
-    python3 \
-    python3-pip \
-    python3-setuptools \
-    python3-wheel \
-    wget \
-    sudo \
-    locales \
-    curl \
+    lsb-release \
     gnupg2 \
-    software-properties-common 
+    && rm -rf /var/lib/apt/lists/*
+# python3-pip \
+# python3-rosdep \
+# python3-vcstool
 
-# ----------------- ROS 2 Installation -----------------
-# Set the locale
-RUN locale-gen en_US en_US.UTF-8 && \
-    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 && \
-    export LANG=en_US.UTF-8
-
-# Setup Sources
-RUN add-apt-repository universe
-
+# ---------------- ROS 2 ----------------
+# source: https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
 # Add the ROS 2 GPG key and repository
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
-    sh -c 'echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list'
+RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-keys F42ED6FBAB17C654 && \
+    sh -c 'echo "deb [arch=amd64,arm64] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list'
 
-# Update package list and install ROS 2
-RUN apt-get update && apt-get install -y ros-humble-desktop
+# Update the apt repository caches[^3^][3]
+RUN apt-get update
 
-# Source ROS 2 setup script
-RUN echo "source /opt/ros/humble/setup.bash" >> /etc/skel/.bashrc
+# Install ROS 2 Humble Hawksbill Desktop
+RUN apt-get install -y ros-humble-desktop
+
+# Source the ROS 2 environment
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
-# ----------------- ROS 2 Installation -----------------
+# Expose the necessary ports
+EXPOSE 11311
 
-# Clean up
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Source the ROS 2 environment
+RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
-# ----------------- Gazebo Installation -----------------
+# ---------------- ROS 2 ----------------
 
-# Add the Gazebo GPG key and repository
-RUN sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" > /etc/apt/sources.list.d/gazebo-stable.list' && \
-    wget https://packages.osrfoundation.org/gazebo.key -O - | apt-key add - && \
-    apt-get update
+# ---------------- Gazebo ----------------
+# source: https://gazebosim.org/docs/harmonic/install_ubuntu/
 
-# Install Gazebo and ros_gz
-RUN apt install -y gazebo ros-humble-gazebo-ros-pkgs
+# # Add the Gazebo repository to sources list
+# RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
 
-# ----------------- Gazebo Installation -----------------
-# Clean up
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# # Install Gazebo Harmonic metapackage
+# RUN apt-get update && apt-get install -y gz-harmonic
 
-# ----------------- Custom Installation -----------------
-# Make UR3 folder to /home/dissertation for storing all user developed and custom files
-RUN mkdir -p /home/dissertation/UR3
+# Add the Gazebo repository GPG key
+RUN curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
 
-# Copy container_menu.sh to /home/dissertation/UR3
-COPY container_menu.sh /home/dissertation/UR3
-# Making container_menu.sh executable
-RUN chmod +x /home/dissertation/UR3/container_menu.sh
+# Add the Gazebo repository to sources list
+RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
 
-# ----------------- Custom Installation -----------------
+# Install Gazebo Harmonic metapackage
+RUN apt-get update && apt-get install -y gz-harmonic
 
-# Add user named dissertation with sudo privileges
-RUN useradd -ms /bin/bash dissertation && \
-    usermod -aG sudo dissertation && \
-    echo "dissertation ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+# Attaching display to the container
+ENV DISPLAY=:0
 
-# Create .gazebo directory and set permissions
-RUN mkdir -p /home/dissertation/.gazebo && \
-    chown -R dissertation:dissertation /home/dissertation/.gazebo
 
-# Set the default user and work directory
-USER dissertation
-WORKDIR /home/dissertation/UR3
+# # ---------------- Gazebo ----------------
 
-# Set the default shell to bash rather than sh
-ENV SHELL /bin/bash
 
-# Set the entrypoint
-# ENTRYPOINT ["/home/dissertation/UR3/container_menu.sh"]
+# set workdir
+WORKDIR /root
