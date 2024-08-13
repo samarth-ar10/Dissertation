@@ -1,0 +1,46 @@
+# Use an official ROS2 Foxy base image
+FROM osrf/ros:foxy-desktop
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    lsb-release \
+    python3-colcon-common-extensions \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Gazebo 11 and ROS2 Gazebo packages from ROS2 Foxy repositories
+RUN set -e && apt-get update && apt-get install -y \
+    ros-foxy-gazebo-ros-pkgs \
+    ros-foxy-ros2-control \
+    ros-foxy-ros2-controllers \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a workspace directory
+RUN mkdir -p /root/ros2_ws/src
+
+# Check connectivity and repository access
+RUN git ls-remote https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver.git && \
+    git ls-remote https://github.com/UniversalRobots/Universal_Robots_ROS2_Description.git
+
+# Clone the Universal Robots ROS2 packages and remove the duplicate ur_description package
+RUN cd /root/ros2_ws/src && \
+    git clone -b foxy https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver.git && \
+    git clone -b humble https://github.com/UniversalRobots/Universal_Robots_ROS2_Description.git && \
+    rm -rf /root/ros2_ws/src/Universal_Robots_ROS2_Description/ur_description && \
+    ls -la /root/ros2_ws/src/Universal_Robots_ROS2_Description && \
+    ls -la /root/ros2_ws/src/Universal_Robots_ROS2_Driver
+
+# Build the ROS2 workspace
+RUN /bin/bash -c "source /opt/ros/foxy/setup.bash && cd /root/ros2_ws && colcon build"
+
+# Source ROS2 setup script and workspace setup script
+RUN echo "source /opt/ros/foxy/setup.bash" >> ~/.bashrc && \
+    echo "source /root/ros2_ws/install/setup.bash" >> ~/.bashrc
+
+# Expose the Gazebo server port
+EXPOSE 11345
+
+# Start ROS2 and Gazebo server in one terminal
+CMD ["/bin/bash", "-c", "source /opt/ros/foxy/setup.bash && source /root/ros2_ws/install/setup.bash && echo -e \"\033[1;32mGazebo server is running. Connect to it using port 11345.\033[0m\" && ros2 launch ur_robot_driver ur_control.launch.py"]

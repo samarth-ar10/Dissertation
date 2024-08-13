@@ -1,0 +1,95 @@
+# Use the official ROS ${ROS_DISTRO} base image
+FROM ros:jazzy
+
+ENV ROS_DISTRO humble
+
+# Install necessary dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    python3-colcon-common-extensions \
+    python3-pip \
+    python3-rosdep \
+    python3-vcstool \
+    # ros-${ROS_DISTRO}-ament-cmake \
+    # ros-${ROS_DISTRO}-xacro \
+    # ros-${ROS_DISTRO}-ur-msgs \
+    # ros-${ROS_DISTRO}-ur-client-library \
+    # ros-${ROS_DISTRO}-action-msgs \
+    # ros-${ROS_DISTRO}-ament-lint-common \
+    # ros-${ROS_DISTRO}-ament-cmake-gtest \
+    # ros-${ROS_DISTRO}-ament-cmake-gmock \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installing additional dependencies for the UR robot driver
+RUN apt-get update && apt-get install -y \
+    ros-${ROS_DISTRO}-ur \
+    ros-${ROS_DISTRO}-ur-controllers \
+    && rm -rf /var/lib/apt/lists/*
+
+# # Initialize rosdep
+# RUN rosdep init && \
+#     rosdep update
+
+# Set up ROS environment
+SHELL ["/bin/bash", "-c"]
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc
+RUN echo "export GZ_VERSION=harmonic" >> ~/.bashrc
+RUN echo "export ROS_DISTRO=${ROS_DISTRO}" >> ~/.bashrc
+RUN source ~/.bashrc
+
+# Install curl
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install GZ Harmonic with correct GPG handling
+RUN curl -sSL https://packages.osrfoundation.org/gazebo.gpg | gpg --dearmor -o /usr/share/keyrings/gazebo-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gazebo-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list && \
+    apt-get update && \
+    apt-get install -y gz-harmonic
+
+# Set up rosdep for GZ Harmonic
+RUN wget https://raw.githubusercontent.com/osrf/osrf-rosdep/master/gz/00-gazebo.list -O /etc/ros/rosdep/sources.list.d/00-gazebo.list && \
+    rosdep update && \
+    rosdep resolve gz-harmonic
+
+# Create a workspace
+WORKDIR /ros2_ws
+RUN mkdir src
+
+# Clone the Universal_Robots_ROS2_Driver repository
+RUN git clone -b main https://github.com/UniversalRobots/Universal_Robots_ROS2_Driver.git src/Universal_Robots_ROS2_Driver && \
+    git clone -b humble https://github.com/UniversalRobots/Universal_Robots_ROS2_Description.git src/Universal_Robots_ROS2_Description && \
+    git clone -b ros2 https://github.com/UniversalRobots/Universal_Robots_ROS2_GZ_Simulation.git src/Universal_Robots_ROS2_GZ_Simulation
+
+# Clone the necessary ros2_control repositories
+RUN git clone -b master https://github.com/ros-controls/control_msgs.git src/control_msgs && \
+    git clone -b ros2-master https://github.com/ros-controls/control_toolbox.git src/control_toolbox && \
+    git clone -b master https://github.com/ros-controls/gz_ros2_control.git src/gz_ros2_control && \
+    git clone -b master https://github.com/ros-controls/kinematics_interface.git src/kinematics_interface && \
+    git clone -b master https://github.com/ros-controls/realtime_tools.git src/realtime_tools && \
+    git clone -b master https://github.com/ros-controls/ros2_control.git src/ros2_control && \
+    # git clone -b master https://github.com/ros-controls/ros2_control_demos.git src/ros2_control_demos && \
+    git clone -b master https://github.com/ros-controls/ros2_controllers.git src/ros2_controllers
+
+# Install ROS2 dependencies using rosdep
+RUN rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y
+
+# Build the workspace
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
+    colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# Source the setup file
+RUN echo "source /ros2_ws/install/setup.bash" >> ~/.bashrc
+
+# For Gazebo communication
+EXPOSE 11345
+# For ROS communication
+EXPOSE 11311 
+
+# Set the entry point
+ENTRYPOINT ["/bin/bash"]

@@ -1,0 +1,103 @@
+# Use the official Ubuntu 22.04 image as the base image
+FROM ubuntu:22.04
+
+# Set environment variables for non-interactive installation
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO=rolling
+ENV GZ_VERSION=harmonic
+
+# Update and install basic dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    curl \
+    git \
+    lsb-release \
+    gnupg2 \
+    build-essential \
+    ccache \
+    python3-pip \
+    sudo \
+    nano \
+    wget
+
+# Set up locale
+RUN apt-get install -y locales && \
+    locale-gen en_US en_US.UTF-8 && \
+    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+
+# Add ROS2 apt repository
+RUN apt-get update && apt-get install -y software-properties-common && \
+    add-apt-repository universe && \
+    curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | tee /etc/apt/trusted.gpg.d/ros.asc && \
+    echo "deb http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/ros2-latest.list && \
+    echo "deb [arch=$(dpkg --print-architecture)] http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" > /etc/apt/sources.list.d/ros2-latest.list
+
+# Install ROS2 base packages
+RUN apt-get update && \
+    apt-get install -y ros-$ROS_DISTRO-desktop \
+    python3-rosdep \
+    python3-colcon-common-extensions
+
+# Install ROS2 development packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    python3-vcstool \
+    ros-${ROS_DISTRO}-ament-cmake \
+    ros-${ROS_DISTRO}-xacro \
+    ros-${ROS_DISTRO}-ur-msgs \
+    ros-${ROS_DISTRO}-ur-client-library \
+    ros-${ROS_DISTRO}-action-msgs \
+    ros-${ROS_DISTRO}-ament-lint-common \
+    ros-${ROS_DISTRO}-ament-cmake-gtest \
+    ros-${ROS_DISTRO}-ament-cmake-gmock \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installing very particular dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-${ROS_DISTRO}-ur \
+    ros_gz \
+    # ros_gz_sim \
+    # gz_ros2_control \
+    # ros-${ROS_DISTRO}-ros2-ur-client-library \
+    ros-${ROS_DISTRO}-ros2-control \
+    ros-${ROS_DISTRO}-ros2-controllers \
+    && rm -rf /var/lib/apt/lists/*
+
+# Initialize rosdep
+RUN rosdep init && \
+    rosdep update
+
+# Set up ROS environment
+SHELL ["/bin/bash", "-c"]
+RUN echo "source /opt/ros/$ROS_DISTRO/setup.bash" >> ~/.bashrc
+RUN echo "export GZ_VERSION=harmonic" >> ~/.bashrc
+RUN source ~/.bashrc
+
+# Install GZ Harmonic with correct GPG handling
+RUN curl -sSL https://packages.osrfoundation.org/gazebo.gpg | gpg --dearmor -o /usr/share/keyrings/gazebo-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gazebo-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/gazebo-stable.list && \
+    apt-get update && \
+    apt-get install -y gz-harmonic
+
+# Set up rosdep for GZ Harmonic
+RUN wget https://raw.githubusercontent.com/osrf/osrf-rosdep/master/gz/00-gazebo.list -O /etc/ros/rosdep/sources.list.d/00-gazebo.list && \
+    rosdep update && \
+    rosdep resolve gz-harmonic
+
+# # Setup and build ros_gz
+# RUN mkdir -p ~/ws/src && \
+#     cd ~/ws/src && \
+#     git clone https://github.com/gazebosim/ros_gz.git -b ros2 && \
+#     cd ~/ws && \
+#     rosdep install -r --from-paths src -i -y --rosdistro $ROS_DISTRO && \
+#     source /opt/ros/$ROS_DISTRO/setup.bash && \
+#     colcon build
+
+# Set the working directory
+WORKDIR /root/
+
+# Final setup commands
+CMD ["bash"]
