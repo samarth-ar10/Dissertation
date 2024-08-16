@@ -1,4 +1,4 @@
-FROM ros:humble-ros-core-jammy
+FROM ros:rolling-ros-core-jammy
 
 # setup environment
 ENV LANG C.UTF-8
@@ -68,6 +68,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-${ROS_DISTRO}-ament-lint-common \
     && rm -rf /var/lib/apt/lists/*
 
+# Install dependencies for control_manager
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ros-${ROS_DISTRO}-ros2-control \
+    ros-${ROS_DISTRO}-ros2-controllers \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create the 'realtime' group and add the user to it
+RUN addgroup realtime && usermod -a -G realtime $(whoami)
+
+# Add limits for the 'realtime' group in /etc/security/limits.conf
+RUN echo "@realtime soft rtprio 99" >> /etc/security/limits.conf && \
+    echo "@realtime soft priority 99" >> /etc/security/limits.conf && \
+    echo "@realtime soft memlock 102400" >> /etc/security/limits.conf && \
+    echo "@realtime hard rtprio 99" >> /etc/security/limits.conf && \
+    echo "@realtime hard priority 99" >> /etc/security/limits.conf && \
+    echo "@realtime hard memlock 102400" >> /etc/security/limits.conf
+
+
 # Initialize rosdep
 RUN rosdep init && rosdep update
 
@@ -106,6 +124,20 @@ EXPOSE 11345
 
 # Source ROS 2 setup file and workspace setup file, then run the launch file
 # CMD /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && source /root/workspaces/ur_gazebo/install/setup.bash && ros2 launch ur_simulation_gazebo ur_sim_control.launch.py"
+
+# Verify that control_manager is installed
+# RUN /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && ros2 pkg list | grep control_manager"
+
+# Source ROS 2 setup file and workspace setup file, then run the controller manager
+# CMD /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && \
+#     source /root/workspaces/ur_gazebo/install/setup.bash && \
+#     ros2 run controller_manager ros2_control_node"
+
+# Health check to ensure control_manager is running
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD ros2 node list | grep "/controller_manager" || exit 1
+
+
 
 # Set entrypoint to /bin/bash
 ENTRYPOINT ["/bin/bash"]

@@ -23,8 +23,10 @@ run_container() {
     read -p "Enter the name for the Docker container: " container_name
     read -p "Enter the gazebo port to expose on the host machine (default: 11345): " gz_port
     read -p "Enter the ROS 2 port to expose on the host machine (default: 11311): " ros_port
-    port=${port:-11345}
-    docker run -it --rm --name "$container_name" -p "$gz_port":11345 -p "$ros_port":11311 -e GAZEBO_MASTER_URI=http://localhost:"$port" -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix my_ros2_image
+    gz_port=${gz_port:-11345}
+    ros_port=${ros_port:-11311}
+    
+    docker run -it --name "$container_name" --network host -e GAZEBO_MASTER_URI=http://localhost:"$gz_port" -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix my_ros2_image
 }
 
 # Function to list all Docker containers
@@ -44,13 +46,18 @@ delete_container() {
     docker rm "$container_name"
 }
 
-# Function to enter a running Docker container
+# Function to enter a Docker container, starting it if necessary
 enter_running_docker_container() {
     read -p "Enter the name or ID of the Docker container to enter: " container_name
-    if docker exec -it "$container_name" /bin/bash; then
+    if docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        if ! docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+            echo "Container '$container_name' is not running. Starting it..."
+            docker start "$container_name"
+        fi
+        docker exec -it "$container_name" /bin/bash
         echo "Entered Docker container '$container_name'."
     else
-        echo "Failed to enter Docker container '$container_name'. Ensure it is running."
+        echo "Container '$container_name' does not exist."
     fi
 }
 
