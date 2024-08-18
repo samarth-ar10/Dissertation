@@ -200,9 +200,6 @@ check_status
 sudo apt-get install libncurses-dev libssl-dev flex bison
 
 # Compile the kernel. Set V=1 for verbose output in make command
-cd ..
-ls
-git init
 make -j "$(getconf _NPROCESSORS_ONLN)" deb-pkg
 check_status
 echo -e "${GREEN}Kernel compiled successfully.${NC}"

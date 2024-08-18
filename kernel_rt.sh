@@ -72,7 +72,7 @@ download_kernel_and_patch() {
     # Provide example links for reference
     echo -e "${YELLOW}Please use the following links as a reference:${NC}"
     echo -e "${YELLOW}PREEMPT_RT patch versions: https://wiki.linuxfoundation.org/realtime/preempt_rt_versions${NC}"
-    echo -e "${YELLOW}Kernel base URL example: https://mirrors.edge.kernel.org/pub/linux/kernel/v6.x/${NC}"
+    echo -e "${YELLOW}Kernel base URL example: https://www.kernel.org/pub/linux/kernel/v6.x/${NC}"
     echo -e "${YELLOW}Patch base URL example: https://cdn.kernel.org/pub/linux/kernel/projects/rt/6.6/${NC}"
 
     # Prompt the user for the kernel version they want to use
@@ -241,3 +241,115 @@ install_compiled_kernel() {
     display_success "Kernel and headers installed successfully."
 }
     
+setup_realtime_privileges() {
+    # Create a group for real-time users
+    sudo groupadd realtime
+
+    # Add the current user to the realtime group
+    sudo usermod -aG realtime $(whoami)
+
+    # Update /etc/security/limits.conf with real-time scheduling settings
+    sudo bash -c 'cat <<EOF >> /etc/security/limits.conf
+@realtime soft rtprio 99
+@realtime soft priority 99
+@realtime soft memlock 102400
+@realtime hard rtprio 99
+@realtime hard priority 99
+@realtime hard memlock 102400
+EOF'
+
+    echo "Real-time scheduling privileges have been set up. Please log out and log back in for the changes to take effect."
+}
+
+setup_grub_for_rt_kernel() {
+    # List all available kernels
+    echo "Available kernels:"
+    awk -F\' '/menuentry |submenu / {print $1 $2}' /boot/grub/grub.cfg
+
+    # Prompt the user to enter the submenu and entry name
+    read -p "Enter the submenu name (e.g., 'Advanced options for Ubuntu'): " submenu_name
+    read -p "Enter the entry name (e.g., 'Ubuntu, with Linux 4.14.139-rt66'): " entry_name
+
+    # Generate the GRUB_DEFAULT string
+    grub_default="${submenu_name}>${entry_name}"
+
+    # Update the GRUB configuration
+    sudo sed -i 's/^GRUB_DEFAULT=.*/GRUB_DEFAULT="'"$grub_default"'"/' /etc/default/grub
+
+    # Update GRUB menu entries
+    sudo update-grub
+
+    echo "GRUB has been configured to boot the real-time kernel by default. Please reboot your system for the changes to take effect."
+}
+
+reboot_system() {
+    read -p "Do you want to reboot your system now? [y/n]: " reboot_choice
+    if [ "$reboot_choice" = "y" ]; then
+        sudo reboot
+    else
+        echo "Please remember to reboot your system for the changes to take effect."
+    fi
+}   
+
+# Main menu loop
+while true; do
+    echo "-----------------------------------------------------------------------------------"
+    echo "Linux Real-Time Kernel Setup Script"
+    echo "-----------------------------------------------------------------------------------"
+    echo "1. Install required packages"
+    echo "2. Download kernel and patch files"
+    echo "3. Decompress downloaded files"
+    echo "4. Verify downloaded files"
+    echo "5. Extract and patch kernel"
+    echo "6. Configure kernel"
+    echo "7. Compile kernel"
+    echo "8. Install compiled kernel"
+    echo "9. Setup real-time privileges"
+    echo "10. Setup GRUB for RT kernel"
+    echo "11. Reboot system"
+    echo "12. Exit"
+    echo "-----------------------------------------------------------------------------------"
+    read -p "Enter your choice [1-12]: " choice
+    echo "-----------------------------------------------------------------------------------"
+    case $choice in
+        1)
+            install_packages
+            ;;
+        2)
+            download_kernel_and_patch
+            ;;
+        3)
+            decompress_files
+            ;;
+        4)
+            verify_downloaded_files
+            ;;
+        5)
+            extract_and_patch_kernel
+            ;;
+        6)
+            configure_kernel
+            ;;
+        7)
+            compile_kernel
+            ;;
+        8)
+            install_compiled_kernel
+            ;;
+        9)
+            setup_realtime_privileges
+            ;;
+        10)
+            setup_grub_for_rt_kernel
+            ;;
+        11)
+            reboot_system
+            ;;
+        12)
+            break
+            ;;
+        *)
+            echo "Invalid choice. Please enter a valid option."
+            ;;
+    esac
+done
