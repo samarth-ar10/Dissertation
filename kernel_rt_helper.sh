@@ -195,3 +195,114 @@ compile_kernel() {
     echo -e "${GREEN}Kernel installed successfully.${NC}"
 }
 
+configure_system_for_rt_kernel() {
+    # Update the GRUB bootloader to include the new kernel
+    echo -e "${YELLOW}Updating GRUB bootloader...${NC}"
+    sudo update-grub
+    check_status
+    echo -e "${GREEN}GRUB updated successfully.${NC}"
+
+    # Display the final state for user satisfaction
+    echo -e "${YELLOW}Final state:${NC}"
+    cat "$STATE_FILE"
+
+    # Setup user privileges for real-time scheduling
+    echo -e "${YELLOW}Setting up user privileges for real-time scheduling...${NC}"
+
+    # Create the realtime group
+    sudo groupadd realtime
+    check_status
+    echo -e "${GREEN}Realtime group created successfully.${NC}"
+
+    # Add the current user to the realtime group
+    sudo usermod -aG realtime "$(whoami)"
+    check_status
+    echo -e "${GREEN}User added to the realtime group successfully.${NC}"
+
+    # Ensure /etc/security/limits.conf contains the necessary configuration
+    echo -e "${YELLOW}Configuring /etc/security/limits.conf for real-time scheduling...${NC}"
+    sudo bash -c 'cat >> /etc/security/limits.conf <<EOF
+@realtime soft rtprio 99
+@realtime soft priority 99
+@realtime soft memlock 102400
+@realtime hard rtprio 99
+@realtime hard priority 99
+@realtime hard memlock 102400
+EOF'
+    check_status
+    echo -e "${GREEN}/etc/security/limits.conf configured successfully.${NC}"
+
+    # Setup GRUB to always boot the real-time kernel
+    echo -e "${YELLOW}Configuring GRUB to boot the real-time kernel by default...${NC}"
+
+    # Find the menu entry for the newly installed kernel
+    GRUB_ENTRY=$(awk -F\' '/menuentry |submenu / {print $1 $2}' /boot/grub/grub.cfg | grep -E "Advanced options for Ubuntu>Ubuntu, with Linux ${KERNEL_VERSION}-rt" | head -n 1)
+
+    if [ -z "$GRUB_ENTRY" ]; then
+        echo -e "${RED}Error: Could not find the GRUB entry for the real-time kernel.${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Found GRUB entry: $GRUB_ENTRY${NC}"
+
+    # Set the GRUB default entry
+    sudo sed -i "s/^GRUB_DEFAULT=.*/GRUB_DEFAULT=\"$GRUB_ENTRY\"/" /etc/default/grub
+    check_status
+    echo -e "${GREEN}GRUB default entry set successfully.${NC}"
+
+    # Update GRUB
+    sudo update-grub
+    check_status
+    echo -e "${GREEN}GRUB updated successfully.${NC}"
+
+    # Final instructions to the user
+    echo -e "${YELLOW}Please note:${NC} You will need to log out and log back in (or reboot) for the changes to the realtime group to take effect. The system will automatically boot into the real-time kernel on the next restart."
+}
+
+# Function to display the menu
+display_menu() {
+    echo -e "${YELLOW}Kernel Real-Time Setup Menu${NC}"
+    echo "1. Setup user privileges for real-time scheduling"
+    echo "2. Download and verify kernel and patch files"
+    echo "3. Compile the kernel"
+    echo "4. Update GRUB bootloader"
+    echo "5. Exit"
+}
+
+# Function to handle user input
+handle_user_input() {
+    local choice
+    read -p "Enter your choice [1-5]: " choice
+    case $choice in
+        1)
+            setup_realtime_privileges
+            ;;
+        2)
+            download_kernel_and_patch
+            ;;
+        3)
+            compile_kernel
+            ;;
+        4)
+            update_grub_bootloader
+            ;;
+        5)
+            echo -e "${GREEN}Exiting...${NC}"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Invalid choice, please try again.${NC}"
+            ;;
+    esac
+}
+
+# Main loop to display the menu and handle user input
+main_loop() {
+    while true; do
+        display_menu
+        handle_user_input
+    done
+}
+
+# Call the main loop
+main_loop
