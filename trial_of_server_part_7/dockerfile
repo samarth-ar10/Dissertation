@@ -122,6 +122,9 @@ RUN /bin/bash -c "source /root/workspaces/ur_gazebo/install/setup.bash && ros2 p
 # Expose the necessary ports for Gazebo
 EXPOSE 11345
 
+COPY setup_container.sh /root/setup_container.sh
+RUN chmod +x /root/setup_container.sh
+
 # Source ROS 2 setup file and workspace setup file, then run the launch file
 # CMD /bin/bash -c "source /opt/ros/${ROS_DISTRO}/setup.bash && source /root/workspaces/ur_gazebo/install/setup.bash && ros2 launch ur_simulation_gazebo ur_sim_control.launch.py"
 

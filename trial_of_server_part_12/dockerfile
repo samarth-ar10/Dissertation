@@ -1,0 +1,53 @@
+FROM ubuntu:22.04
+
+# setup environment
+ENV LANG C.UTF-8
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO humble
+ENV DISPLAY :0
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    curl \
+    gnupg2 \
+    lsb-release \
+    sudo \
+    wget \
+    git \
+    python3-pip \
+    python3-apt \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages
+RUN pip3 install \
+    colcon-common-extensions \
+    rosdep \
+    vcstool \
+    rosinstall_generator
+
+# Rosdep init
+RUN rosdep init
+RUN rosdep update
+
+# set system timezone to LONDON - This is based on user preference
+RUN ln -fs /usr/share/zoneinfo/Europe/London /etc/localtime
+
+COPY ur3_setup.sh /root/ur3_setup.sh
+RUN chmod +x /root/ur3_setup.sh
+
+# Set the working directory
+WORKDIR /root
+
+# Source ROS 2 and workspace setup files
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
+
+# Expose port for ROS
+EXPOSE 11311
+# Expose port for Gazebo
+EXPOSE 11345
+
+# # Enter the container with and run ur3_setup.sh
+# CMD ["/bin/bash", "-c", "/root/ur3_setup.sh"]
+
+# Enter the container in /bin/bash, print the container ip address so that the host can connect with it and then run ur3_setup.sh 
+CMD ["/bin/bash", "-c", "echo 'Container IP Address: ' && hostname -I && /root/ur3_setup.sh"]

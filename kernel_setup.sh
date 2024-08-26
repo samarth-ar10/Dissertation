@@ -103,7 +103,8 @@ for file in *.xz; do
     if [ -f "${file%.xz}" ]; then
         echo -e "${YELLOW}File ${file%.xz} already decompressed, skipping...${NC}"
     else
-         
+        echo -e "${YELLOW}Decompressing $file...${NC}"
+        xz -d "$file"
         check_status
         echo -e "${GREEN}Decompressed $file successfully.${NC}"
     fi

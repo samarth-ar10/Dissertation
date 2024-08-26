@@ -34,8 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-rolling-ur \
     ros-rolling-ros2-control \
     ros-rolling-ros2-controllers \
-    gz_ros2_control \
-    ros-rolling-ros2-ur-client-library \
+    gazebo  \
     && rm -rf /var/lib/apt/lists/*
 
 # finish setup

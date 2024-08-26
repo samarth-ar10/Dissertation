@@ -1,0 +1,82 @@
+FROM ros:humble-ros-core-jammy
+
+# setup environment
+ENV LANG C.UTF-8
+
+ENV ROS_DISTRO humble
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    python3-pip \
+    python3-rosdep \
+    python3-rosinstall-generator \
+    python3-vcstool \
+    python3-colcon-common-extensions \
+    git \
+    ros-$ROS_DISTRO-moveit \
+    && rm -rf /var/lib/apt/lists/*
+
+# create and configure ros2 workspace
+RUN mkdir -p /root/ros2_ws/src
+WORKDIR /root/ros2_ws
+RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && \
+    rosdep init && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y"
+
+#  Install ROS2 packages, which are required for ROS2-based Robot Simulation and Control:
+
+# ROS2 Control + ROS2 Controllers:
+RUN apt-get update && apt-get install -y \
+    ros-$ROS_DISTRO-ros2-control \
+    ros-$ROS_DISTRO-ros2-controllers \
+    ros-$ROS_DISTRO-gripper-controllers \
+    && rm -rf /var/lib/apt/lists/*
+
+# Gazebo for ROS2 $ROS_DISTRO:
+RUN apt-get update && apt-get install -y \
+    gazebo \
+    ros-$ROS_DISTRO-gazebo-ros-pkgs \
+    ros-$ROS_DISTRO-gazebo-ros2-control \
+    && rm -rf /var/lib/apt/lists/*
+
+# xacro:
+RUN apt-get update && apt-get install -y \
+    ros-$ROS_DISTRO-xacro \
+    && rm -rf /var/lib/apt/lists/*
+
+# Fix cycle time issues in $ROS_DISTRO-moveit (temporary fix):
+# RUN apt-get install ros-$ROS_DISTRO-rmw-cyclonedds-cpp # (+) Add into .bashrc file -> export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+
+# (EXTRA STEP) -> Due to problems with URDF file processing for the newest version of ROS 2 
+# Control-Gazebo plugin, Gazebo-ROS2-Control must be downgraded to the 0.4.6 version:
+
+# Uninstall Gazebo ROS2 Control:
+RUN apt-get remove -y ros-$ROS_DISTRO-gazebo-ros2-control
+
+# Download and install the 0.4.6 version:
+WORKDIR /root/ros2_ws/src
+RUN git clone -b humble https://github.com/ros-controls/gazebo_ros2_control.git
+RUN cd gazebo_ros2_control
+# RUN git reset --hard 9a3736c
+RUN cd ..
+RUN /bin/bash -c "source /opt/ros/$ROS_DISTRO/setup.bash && \
+    colcon build --symlink-install"
+
+# Universal Robots ROS2 Driver
+RUN apt-get update && apt-get install -y \
+    ros-$ROS_DISTRO-ur-robot-driver \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the container_menu script into the container
+COPY  container_menu.sh /root/container_menu.sh
+RUN chmod +x /root/container_menu.sh
+
+
+# Expose the necessary ports for Gazebo
+EXPOSE 11345
+EXPOSE 11311
+
+# Luach into the terminal into /root directory
+WORKDIR /root
+CMD ["/bin/bash"]
