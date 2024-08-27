@@ -116,8 +116,7 @@ private:
 
         // Create a new message for the real robot
         auto real_msg = *msg;  // Copy the incoming message
-        real_msg.header.stamp.sec = 0;  // Set sec to 0 for the real robot
-        real_msg.header.stamp.nanosec = 0;  // Set nanosec to 0 for the real robot
+        real_msg.header.stamp = this->now();  // Set the current time for the real robot
 
         // Combine both for the virtual trajectory
         auto virtual_msg = *msg;
