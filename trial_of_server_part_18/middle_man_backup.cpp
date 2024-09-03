@@ -4,11 +4,11 @@
 #include <set>
 #include <mutex>
 
-class MiddlewareUR3 : public rclcpp::Node
+class MiddleManNode : public rclcpp::Node
 {
 public:
-    MiddlewareUR3()
-        : Node("middle_ware_ur3"), node_name_(""), control_node_("")
+    MiddleManNode()
+        : Node("middle_man_node"), node_name_(""), control_node_("")
     {
         // Setup name registration and conflict resolution
         setup_node_name();
@@ -28,18 +28,18 @@ public:
         // Publisher and subscription for node identification and privilege management
         name_pub_ = this->create_publisher<std_msgs::msg::String>("/node_name_broadcast", 10);
         name_sub_ = this->create_subscription<std_msgs::msg::String>(
-            "/node_name_broadcast", 10, std::bind(&MiddlewareUR3::name_callback, this, std::placeholders::_1));
+            "/node_name_broadcast", 10, std::bind(&MiddleManNode::name_callback, this, std::placeholders::_1));
 
         // Subscription to the topic where commands are published
         subscription_ = this->create_subscription<trajectory_msgs::msg::JointTrajectory>(
             "/input_joint_trajectory", 10,
-            std::bind(&MiddlewareUR3::trajectory_callback, this, std::placeholders::_1));
+            std::bind(&MiddleManNode::trajectory_callback, this, std::placeholders::_1));
 
         // Timer to broadcast the node's name periodically
         name_broadcast_timer_ = this->create_wall_timer(
-            std::chrono::seconds(5), std::bind(&MiddlewareUR3::broadcast_name, this));
+            std::chrono::seconds(5), std::bind(&MiddleManNode::broadcast_name, this));
 
-        RCLCPP_INFO(this->get_logger(), "MiddlewareUR3 has been started with name: %s", node_name_.c_str());
+        RCLCPP_INFO(this->get_logger(), "MiddleManNode has been started with name: %s", node_name_.c_str());
     }
 
 private:
@@ -117,12 +117,15 @@ private:
             RCLCPP_INFO(this->get_logger(), "Joint %s: Position %f", msg->joint_names[i].c_str(), msg->points[0].positions[i]);
         }
 
-        // Create separate messages for the simulation and real robot
-        auto sim_msg = *msg;                    // Copy the incoming message for simulation
-        sim_msg.header.stamp = rclcpp::Time(0); // Set stamp to 0 for simulation
+        // Create a new message for the simulation
+        auto sim_msg = *msg;              // Copy the incoming message
+        sim_msg.header.stamp.sec = 0;     // Set sec to 0 for the simulation
+        sim_msg.header.stamp.nanosec = 0; // Set nanosec to 0 for the simulation
 
-        auto real_msg = *msg;                // Copy the incoming message for the real robot
-        real_msg.header.stamp = this->now(); // Use current time for the real robot
+        // Create a new message for the real robot
+        auto real_msg = *msg;              // Copy the incoming message
+        real_msg.header.stamp.sec = 0;     // Set sec to 0 for the real robot
+        real_msg.header.stamp.nanosec = 0; // Set nanosec to 0 for the real robot
 
         // Combine both for the virtual trajectory
         auto virtual_msg = *msg;
@@ -170,7 +173,7 @@ private:
 int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<MiddlewareUR3>());
+    rclcpp::spin(std::make_shared<MiddleManNode>());
     rclcpp::shutdown();
     return 0;
 }

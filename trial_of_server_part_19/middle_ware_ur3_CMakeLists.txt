@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.5)
+project(middle_ware_ur3)
+
+# Find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+
+add_executable(middleware_ur3_node src/middle_ware_ur3.cpp)
+
+ament_target_dependencies(middleware_ur3_node rclcpp trajectory_msgs std_msgs)
+
+install(TARGETS
+  middleware_ur3_node
+  DESTINATION lib/${PROJECT_NAME})
+
+ament_package()
