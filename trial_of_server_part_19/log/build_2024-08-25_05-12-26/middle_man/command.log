@@ -1,2 +1,0 @@
-Invoking command in '/home/samarth/GitHub/Dissertation/trial_of_server_part_14/build/middle_man': /usr/bin/cmake /home/samarth/GitHub/Dissertation/trial_of_server_part_14 -DCMAKE_INSTALL_PREFIX=/home/samarth/GitHub/Dissertation/trial_of_server_part_14/install/middle_man
-Invoked command in '/home/samarth/GitHub/Dissertation/trial_of_server_part_14/build/middle_man' returned '1': /usr/bin/cmake /home/samarth/GitHub/Dissertation/trial_of_server_part_14 -DCMAKE_INSTALL_PREFIX=/home/samarth/GitHub/Dissertation/trial_of_server_part_14/install/middle_man
