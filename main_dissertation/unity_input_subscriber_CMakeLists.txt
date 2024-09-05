@@ -1,0 +1,22 @@
+cmake_minimum_required(VERSION 3.5)
+project(unity_input_node)
+
+# Find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(trajectory_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+
+# Add the executable
+add_executable(unity_input_subscriber src/unity_input_subscriber.cpp)
+
+# Link dependencies
+ament_target_dependencies(unity_input_subscriber rclcpp trajectory_msgs std_msgs)
+
+# Install the executable
+install(TARGETS
+  unity_input_subscriber
+  DESTINATION lib/${PROJECT_NAME})
+
+# Package settings
+ament_package()

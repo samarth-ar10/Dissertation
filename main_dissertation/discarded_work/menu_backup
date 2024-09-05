@@ -1,0 +1,300 @@
+#!/bin/bash
+
+# Project Information
+# This script is developed as part of a dissertation project by Samarth
+# under the University of Nottingham.
+
+# Systems this script has been tested on:
+# - Ubuntu 22.04 (Jammy Jellyfish)
+
+# Users running on different systems or configurations can add their notes below:
+# - System 1: (Add your system details here)``
+# - System 2: (Add your system details here)
+
+# Initialize the container sequence number
+CONTAINER_SEQ_FILE=".container_seq"
+if [ ! -f $CONTAINER_SEQ_FILE ]; then
+    echo 0 > $CONTAINER_SEQ_FILE
+fi
+
+# Function to print the system message
+system_message() {
+    echo "-------System-------- $1"
+}
+
+# Function to check if Docker is installed
+check_docker_installed() {
+    system_message "Checking if Docker is installed..."
+    if ! command -v docker &> /dev/null; then
+        echo "Docker is not installed."
+        return 1
+    else
+        echo "Docker is installed."
+        return 0
+    fi
+}
+
+# Function to install Docker
+install_docker() {
+    system_message "Installing Docker..."
+    sudo apt-get update
+    sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+    sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+    sudo apt-get update
+
+    read -p "Enter Docker version to install (or press Enter for default): " docker_version
+    if [ -z "$docker_version" ]; then
+        sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+    else
+        sudo apt-get install -y docker-ce=$docker_version docker-ce-cli=$docker_version containerd.io
+    fi
+
+    sudo usermod -aG docker $USER
+    system_message "Docker installation completed. You may need to log out and log back in for group changes to take effect."
+}
+
+# Function to remove Docker
+remove_docker() {
+    system_message "Removing Docker..."
+    sudo apt-get purge -y docker-ce docker-ce-cli containerd.io
+    sudo apt-get autoremove -y --purge docker-ce docker-ce-cli containerd.io
+    sudo rm -rf /var/lib/docker
+    sudo rm -rf /var/lib/containerd
+    # Remove Docker installed via snap
+    sudo snap remove docker
+    system_message "Docker has been removed from the system."
+}
+
+# Function to start Docker daemon
+start_docker_daemon() {
+    system_message "Starting Docker daemon..."
+    if ! systemctl is-active --quiet docker; then
+        if sudo systemctl start docker && sudo systemctl enable docker; then
+            echo "Docker daemon started."
+        else
+            echo "Failed to start Docker daemon. Please ensure Docker is installed correctly."
+            exit 1
+        fi
+    else
+        echo "Docker daemon is already running."
+    fi
+}
+
+# Function to check Docker daemon status
+check_docker_daemon() {
+    system_message "Checking Docker daemon status..."
+    if ! systemctl is-active --quiet docker; then
+        echo "Docker daemon is not running. Please start Docker and try again."
+        exit 1
+    fi
+}
+
+# Function to check Docker permissions
+check_docker_permissions() {
+    system_message "Checking Docker permissions..."
+    if ! docker info > /dev/null 2>&1; then
+        echo "ERROR: Permission denied while trying to connect to the Docker daemon socket."
+        echo "Please ensure you have the necessary permissions to use Docker."
+        echo "You might need to add your user to the 'docker' group and re-login:"
+        echo "    sudo usermod -aG docker \$USER"
+        echo "    newgrp docker"
+        exit 1
+    fi
+}
+
+# Function to build the Docker image with retries
+build_docker_image() {
+    system_message "Building the Docker image..."
+    local retries=5
+    local count=0
+    until docker build -t ros2_gazebo_x11_vnc .; do
+        count=$((count + 1))
+        if [ $count -lt $retries ]; then
+            echo "Retrying to build the Docker image ($count/$retries)..."
+            sleep 5
+        else
+            echo "Failed to build Docker image after $retries attempts. Please check the Dockerfile for errors."
+            return 1
+        fi
+    done
+    echo "Docker image built successfully."
+}
+
+# Function to generate a unique container name
+generate_container_name() {
+    local tag=$1
+    local seq_num=$(cat $CONTAINER_SEQ_FILE)
+    local container_name="${seq_num}_${tag}"
+    echo $((seq_num + 1)) > $CONTAINER_SEQ_FILE
+    echo $container_name
+}
+
+# Function to get the Dockerfile name
+get_dockerfile_name() {
+    basename "$(pwd)"
+}
+
+# Function to run the Docker container
+run_docker_container() {
+    read -p "Enter a tag for the new Docker container: " tag
+    local container_name=$(generate_container_name "$tag")
+    local dockerfile_name=$(get_dockerfile_name)
+    local volume_path="$(pwd)/$dockerfile_name"
+    
+    mkdir -p "$volume_path"
+    
+    read -p "Run with X11 forwarding? (y/n): " x11_choice
+    system_message "Running the Docker container '$container_name'..."
+    if [[ "$x11_choice" == "y" ]]; then
+        if docker run -it --name "$container_name" \
+                       --device /dev/dri:/dev/dri \
+                       --device /dev/snd:/dev/snd \
+                       -e DISPLAY=$DISPLAY \
+                       -v /tmp/.X11-unix:/tmp/.X11-unix \
+                       -v "$volume_path:/data" \
+                       ros2_gazebo_x11_vnc -x11; then
+            echo "Docker container '$container_name' is running with X11 forwarding."
+        else
+            echo "Failed to run Docker container with X11 forwarding. Please check if the image was built successfully."
+        fi
+    else
+        if docker run -it -p 5900:5900 --name "$container_name" \
+                       --device /dev/dri:/dev/dri \
+                       --device /dev/snd:/dev/snd \
+                       -v "$volume_path:/data" \
+                       ros2_gazebo_x11_vnc; then
+            echo "Docker container '$container_name' is running with VNC."
+        else
+            echo "Failed to run Docker container with VNC. Please check if the image was built successfully."
+        fi
+    fi
+}
+
+
+# Function to stop the Docker container
+stop_docker_container() {
+    read -p "Enter the name of the Docker container to stop: " container_name
+    system_message "Stopping the Docker container '$container_name'..."
+    if docker stop "$container_name"; then
+        echo "Docker container '$container_name' stopped successfully."
+    else
+        echo "Failed to stop Docker container '$container_name'. It might not be running."
+    fi
+}
+
+# Function to remove the Docker container
+remove_docker_container() {
+    read -p "Enter the name of the Docker container to remove: " container_name
+    system_message "Removing the Docker container '$container_name'..."
+    if docker rm "$container_name"; then
+        echo "Docker container '$container_name' removed successfully."
+    else
+        echo "Failed to remove Docker container '$container_name'. It might not exist."
+    fi
+}
+
+# Function to list all running Docker containers
+list_running_docker_containers() {
+    system_message "Listing all running Docker containers..."
+    docker ps
+}
+
+# Function to enter a running Docker container
+enter_running_docker_container() {
+    read -p "Enter the name or ID of the Docker container to enter: " container_name
+    system_message "Entering the Docker container '$container_name'..."
+    if docker exec -it "$container_name" /bin/bash; then
+        echo "Entered Docker container '$container_name'."
+    else
+        echo "Failed to enter Docker container '$container_name'. Ensure it is running."
+    fi
+}
+
+# Function to connect to the Docker container with X11 forwarding
+connect_to_container_x11() {
+    list_running_docker_containers
+    read -p "Enter the name or ID of the Docker container to connect with X11 forwarding: " container_name
+    xhost +local:root
+    system_message "Connecting to Docker container '$container_name' with X11 forwarding..."
+    if docker exec -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix -it "$container_name" /bin/bash; then
+        echo "Connected to Docker container '$container_name' with X11 forwarding."
+    else
+        echo "Failed to connect to Docker container '$container_name' with X11 forwarding. Ensure it is running."
+    fi
+}
+
+# Function to display the menu
+display_menu() {
+    echo "1. Install Docker"
+    echo "2. Start Docker Daemon"
+    echo "3. Build Docker Image"
+    echo "4. Run Docker Container"
+    echo "5. Stop Docker Container"
+    echo "6. Remove Docker Container"
+    echo "7. List Running Docker Containers"
+    echo "8. Enter Running Docker Container"
+    echo "9. Connect to Docker Container with X11 Forwarding"
+    echo "10. Remove Docker"
+    echo "11. Exit"
+}
+
+# Main loop
+while true; do
+    display_menu
+    read -p "Enter your choice [1-11]: " choice
+    case $choice in
+        1)
+            check_docker_installed || install_docker
+            ;;
+        2)
+            if check_docker_installed; then
+                start_docker_daemon
+            else
+                echo "Docker is not installed. Please install Docker first."
+            fi
+            ;;
+        3)
+            check_docker_daemon
+            check_docker_permissions
+            build_docker_image
+            ;;
+        4)
+            check_docker_daemon
+            check_docker_permissions
+            run_docker_container
+            ;;
+        5)
+            check_docker_daemon
+            check_docker_permissions
+            stop_docker_container
+            ;;
+        6)
+            check_docker_daemon
+            check_docker_permissions
+            remove_docker_container
+            ;;
+        7)
+            list_running_docker_containers
+            ;;
+        8)
+            enter_running_docker_container
+            ;;
+        9)
+            connect_to_container_x11
+            ;;
+        10)
+            if check_docker_installed; then
+                remove_docker
+            else
+                echo "Docker is not installed."
+            fi
+            ;;
+        11)
+            exit 0
+            ;;
+        *)
+            echo "Invalid choice, please try again."
+            ;;
+    esac
+done

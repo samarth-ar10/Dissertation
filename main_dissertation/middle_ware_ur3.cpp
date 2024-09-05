@@ -25,6 +25,84 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+
+/*
+This program, `middle_ware_ur3.cpp`, is a ROS2 node designed to act as middleware for the UR3 robotic arm. 
+It subscribes to joint trajectory commands and publishes status messages. The program ensures thread-safe 
+operations using mutexes and manages a set of active joints.
+
+Detailed Explanation:
+1. Include Necessary Headers: The program includes headers for ROS2 functionalities, message types, 
+   and standard libraries required for thread safety and set operations.
+   - Headers:
+     ```cpp
+     #include <rclcpp/rclcpp.hpp>
+     #include <trajectory_msgs/msg/joint_trajectory.hpp>
+     #include <std_msgs/msg/string.hpp>
+     #include <set>
+     #include <mutex>
+     ```
+
+2. Define MiddlewareUR3 Class: The `MiddlewareUR3` class inherits from `rclcpp::Node` and encapsulates 
+   the functionality of the ROS2 node.
+   - Class Definition:
+     ```cpp
+     class MiddlewareUR3 : public rclcpp::Node
+     ```
+
+3. Constructor: The constructor initializes the node, creates a subscriber to receive joint trajectory 
+   commands, and a publisher to send status messages. It also initializes the set of active joints and 
+   the mutex for thread safety.
+   - Constructor:
+     ```cpp
+     MiddlewareUR3() : Node("middleware_ur3") {
+         // Subscriber and Publisher initialization
+         // Set and Mutex initialization
+     }
+     ```
+
+4. Callback Function: The callback function processes the received joint trajectory commands and updates 
+   the set of active joints. It ensures thread-safe operations using the mutex.
+   - Callback Function:
+     ```cpp
+     void trajectory_callback(const trajectory_msgs::msg::Joint_trajectory::SharedPtr msg) {
+         // Process joint trajectory and update active joints
+     }
+     ```
+
+5. Publish Status: The function to publish status messages about the active joints. It ensures thread-safe 
+   access to the set of active joints using the mutex.
+   - Publish Function:
+     ```cpp
+     void publish_status() {
+         // Publish status messages
+     }
+     ```
+
+How to Invoke the Program:
+To compile and run this ROS2 node, follow these steps:
+
+1. Ensure you have a ROS2 workspace set up. If not, create one:
+   ```sh
+   mkdir -p ~/ros2_ws/src
+   cd ~/ros2_ws
+   colcon build
+   source install/setup.bash
+    ```
+2. Create a package and copy the code into the respective files:
+    ```sh
+    ros2 pkg create middle_ware_ur3
+    cp [path to middle_ware_ur3.cpp] ~/ros2_ws/src/middle_ware_ur3/middle_ware_ur3.cpp
+    cp [path to middle_ware_ur3_CMakeLists.txt] ~/ros2_ws/src/middle_ware_ur3/CMakeLists.txt
+    cd ~/ros2_ws
+    colcon build
+    ```
+3. Run the ROS2 node:
+    ```sh
+    ros2 run middle_ware_ur3 middle_ware_ur3
+    ```
+*/
+
 #include <rclcpp/rclcpp.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 #include <std_msgs/msg/string.hpp>

@@ -25,6 +25,76 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '
+
+: '
+This script, `ur3_setup.sh`, is designed to set up the environment for the UR3 robotic arm. It includes 
+functions for printing informational and error messages, setting up ROS2 and Gazebo environments, and 
+configuring Docker containers for simulation and development purposes.
+
+Detailed Explanation:
+1. Print Informational Messages: The script includes a function to print messages in yellow color to 
+   indicate informational messages to the user. This helps in distinguishing informational messages 
+   from other types of messages.
+   - Function:
+     ```sh
+     print_info() {
+         echo -e "\e[33m[INFO] $1\e[0m"
+     }
+     ```
+
+2. Print Error Messages: The script includes a function to print messages in red color to indicate error 
+   messages to the user. This helps in distinguishing error messages from other types of messages.
+   - Function:
+     ```sh
+     print_error() {
+         echo -e "\e[31m[ERROR] $1\e[0m"
+     }
+     ```
+
+3. Setup ROS2 Environment: The script sets up the ROS2 environment by sourcing the necessary setup scripts. 
+   This ensures that the ROS2 environment is correctly configured for running ROS2 nodes and applications.
+   - Function:
+     ```sh
+     setup_ros2_environment() {
+         source /opt/ros/$ROS_DISTRO/setup.bash
+         print_info "ROS2 environment set up for $ROS_DISTRO"
+     }
+     ```
+
+4. Setup Gazebo Environment: The script sets up the Gazebo environment by sourcing the necessary setup scripts. 
+   This ensures that the Gazebo simulation environment is correctly configured for running simulations.
+   - Function:
+     ```sh
+     setup_gazebo_environment() {
+         source /usr/share/gazebo/setup.sh
+         print_info "Gazebo environment set up"
+     }
+     ```
+
+5. Configure Docker Container: The script configures the Docker container by setting up the default user, 
+   working directory, and sourcing the workspace setup script. This ensures that the Docker container is 
+   correctly configured for development and simulation purposes.
+   - Function:
+     ```sh
+     configure_docker_container() {
+         useradd -m -d /home/developer -s /bin/bash developer
+         echo "developer:developer" | chpasswd
+         usermod -aG sudo developer
+         print_info "Docker container configured"
+     }
+     ```
+
+How to Invoke the Script:
+To invoke the script, you can run it from the command line with the appropriate arguments. For example:
+```sh
+./ur3_setup.sh sim
+./ur3_setup.sh driver <robot_ip> <robot_type>
+```
+The first argument specifies whether to run the simulation or the driver example. The second and third
+arguments are required when running the driver example and specify the IP address of the robot and the
+type of the robot, respectively.
+'
+
 #!/bin/bash
 
 # ----------------- Setting up basic functionalities -----------------
@@ -211,6 +281,28 @@ error_check "Failed to clone Unity ROS2-TCP Endpoint repository."
 print_success "Unity ROS2-TCP Endpoint installed successfully."
 
 # ----------------- Install Unity ROS2-TCP Endpoint -----------------
+cd $COLCON_WS/src
+
+ros2 pkg create dummy_test_ur3 --build-type ament_cmake --dependencies rclcpp trajectory_msgs --license Apache-2.0
+cp /root/dummy_test_ur3_CMakeLists.txt $COLCON_WS/src/dummy_test_ur3/CMakeLists.txt
+cp /root/dummy_test_ur3.cpp $COLCON_WS/src/dummy_test_ur3/src/dummy_test_ur3.cpp
+
+ros2 pkg create middle_ware_ur3 --build-type ament_cmake --dependencies rclcpp trajectory_msgs std_msgs --license Apache-2.0
+cp /root/middle_ware_ur3_CMakeLists.txt $COLCON_WS/src/middle_ware_ur3/CMakeLists.txt
+cp /root/middle_ware_ur3.cpp $COLCON_WS/src/middle_ware_ur3/src/middle_ware_ur3.cpp
+
+ros2 pkg create unity_input_node --build-type ament_cmake --dependencies rclcpp trajectory_msgs std_msgs --license Apache-2.0
+cp /root/unity_input_subscriber_CMakeLists.txt $COLCON_WS/src/unity_input_node/CMakeLists.txt
+cp /root/unity_input_subscriber.cpp $COLCON_WS/src/unity_input_node/src/unity_input_subscriber.cpp
+
+cd $COLCON_WS
+colcon build --symlink-install
+error_check "Failed to build ROS2 packages."
+
+source $COLCON_WS/install/setup.bash
+error_check "Failed to source ROS2 setup.bash."
+
+
 # ----------------- Running UR3 Setup -----------------
 
 print_info "Running UR3 Setup..."
@@ -245,7 +337,7 @@ if [ "$test_middleware" == "y" ]; then
 fi
 
 print_info "Running the Unity ROS2-TCP Endpoint..."
-xterm -e "ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0" &
+xterm -e "ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=172.18.0.1" &
 print_success "ROS2-TCP Endpoint running successfully."
 
 print_info "Running the Unity application..."

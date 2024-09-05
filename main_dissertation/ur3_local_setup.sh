@@ -25,6 +25,75 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 '
+
+: '
+This script, `ur3_local_setup.sh`, is designed to set up the local environment for the UR3 robotic arm. 
+It includes functions for printing informational and error messages, setting up ROS2 and Gazebo environments, 
+and configuring Docker containers for simulation and development purposes.
+
+Detailed Explanation:
+1. Print Informational Messages: The script includes a function to print messages in yellow color to 
+   indicate informational messages to the user. This helps in distinguishing informational messages 
+   from other types of messages.
+   - Function:
+     ```sh
+     print_info() {
+         echo -e "\e[33m[INFO] $1\e[0m"
+     }
+     ```
+
+2. Print Error Messages: The script includes a function to print messages in red color to indicate error 
+   messages to the user. This helps in distinguishing error messages from other types of messages.
+   - Function:
+     ```sh
+     print_error() {
+         echo -e "\e[31m[ERROR] $1\e[0m"
+     }
+     ```
+
+3. Setup ROS2 Environment: The script sets up the ROS2 environment by sourcing the necessary setup scripts. 
+   This ensures that the ROS2 environment is correctly configured for running ROS2 nodes and applications.
+   - Function:
+     ```sh
+     setup_ros2_environment() {
+         source /opt/ros/$ROS_DISTRO/setup.bash
+         print_info "ROS2 environment set up for $ROS_DISTRO"
+     }
+     ```
+
+4. Setup Gazebo Environment: The script sets up the Gazebo environment by sourcing the necessary setup scripts. 
+   This ensures that the Gazebo simulation environment is correctly configured for running simulations.
+   - Function:
+     ```sh
+     setup_gazebo_environment() {
+         source /usr/share/gazebo/setup.sh
+         print_info "Gazebo environment set up"
+     }
+     ```
+
+5. Configure Docker Container: The script configures the Docker container by setting up the default user, 
+   working directory, and sourcing the workspace setup script. This ensures that the Docker container is 
+   correctly configured for development and simulation purposes.
+   - Function:
+     ```sh
+     configure_docker_container() {
+         useradd -m -d /home/developer -s /bin/bash developer
+         echo "developer:developer" | chpasswd
+         usermod -aG sudo developer
+         print_info "Docker container configured"
+     }
+     ```
+
+How to Invoke the Script:
+To invoke the script, you can run it from the command line with the appropriate arguments. For example:
+```sh
+./ur3_local_setup.sh sim
+./ur3_local_setup.sh driver <robot_ip> <robot_type>
+```
+The first argument specifies whether to run the simulation or the driver example. The second and third arguments
+are required when running the driver example and specify the IP address of the robot and the robot type, respectively.
+'
+
 #!/bin/bash
 
 # ----------------- Setting up basic functionalities -----------------
