@@ -1,82 +1,96 @@
-# Use Ubuntu Jammy as the base image
-FROM ubuntu:jammy
+# 
+# MIT License
+# 
+# Author: Samarth
+# Contact: psxs2@nottingham.ac.uk
+# 
+# This code is prepared for the dissertation project at the University of Nottingham.
+# The University of Nottingham has governance over this code.
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 
-# Set the locale to support UTF-8[^1^][1]
-ENV LANG en_US.UTF-8[^2^][2]
-ENV LC_ALL en_US.UTF-8
-# set it as non-interactive
+FROM ubuntu:22.04
+
+# setup environment
+ENV LANG C.UTF-8
 ENV DEBIAN_FRONTEND=noninteractive
+ENV ROS_DISTRO humble
+ENV DISPLAY :0
 
-# ---------------- universal dependies ----------------
-# Enable the Ubuntu Universe repository
-RUN apt-get update && apt-get install -y software-properties-common && \
-    add-apt-repository universe \
-    && apt-get update
-
-RUN apt-get install -y \
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
     curl \
+    gnupg2 \
     lsb-release \
-    gnupg \
     sudo \
     wget \
     git \
-    nano \
-    build-essential \
-    cmake \
-    lsb-release \
-    gnupg2 \
+    python3-pip \
+    python3-apt \
     && rm -rf /var/lib/apt/lists/*
-# python3-pip \
-# python3-rosdep \
-# python3-vcstool
 
-# ---------------- ROS 2 ----------------
-# source: https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html
-# Add the ROS 2 GPG key and repository
-RUN apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-keys F42ED6FBAB17C654 && \
-    sh -c 'echo "deb [arch=amd64,arm64] http://packages.ros.org/ros2/ubuntu jammy main" > /etc/apt/sources.list.d/ros2-latest.list'
+# Install Python packages
+RUN pip3 install \
+    colcon-common-extensions \
+    rosdep \
+    vcstool \
+    rosinstall_generator
 
-# Update the apt repository caches[^3^][3]
-RUN apt-get update
+# Rosdep init
+RUN rosdep init
+RUN rosdep update
 
-# Install ROS 2 Humble Hawksbill Desktop
-RUN apt-get install -y ros-humble-desktop
+# set system timezone to LONDON - This is based on user preference
+RUN ln -fs /usr/share/zoneinfo/Europe/London /etc/localtime
 
-# Source the ROS 2 environment
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
+COPY ur3_setup.sh /root/ur3_setup.sh
+RUN chmod +x /root/ur3_setup.sh
 
-# Expose the necessary ports
-EXPOSE 11311
+COPY dummy_test_ur3.cpp /root/dummy_test_ur3.cpp
+COPY dummy_test_ur3_CMakeLists.txt /root/dummy_test_ur3_CMakeLists.txt
+COPY middle_ware_ur3.cpp /root/middle_ware_ur3.cpp
+COPY middle_ware_ur3_CMakeLists.txt /root/middle_ware_ur3_CMakeLists.txt
+COPY unity_input_subscriber.cpp /root/unity_input_subscriber.cpp
+COPY unity_input_subscriber_CMakeLists.txt /root/unity_input_subscriber_CMakeLists.txt
 
-# Source the ROS 2 environment
-RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
-
-# ---------------- ROS 2 ----------------
-
-# ---------------- Gazebo ----------------
-# source: https://gazebosim.org/docs/harmonic/install_ubuntu/
-
-# # Add the Gazebo repository to sources list
-# RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-
-# # Install Gazebo Harmonic metapackage
-# RUN apt-get update && apt-get install -y gz-harmonic
-
-# Add the Gazebo repository GPG key
-RUN curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
-
-# Add the Gazebo repository to sources list
-RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
-
-# Install Gazebo Harmonic metapackage
-RUN apt-get update && apt-get install -y gz-harmonic
-
-# Attaching display to the container
-ENV DISPLAY=:0
-
-
-# # ---------------- Gazebo ----------------
-
-
-# set workdir
+# Set the working directory
 WORKDIR /root
+
+# Source ROS 2 and workspace setup files
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
+
+# Expose port for ROS
+EXPOSE 11311
+# Expose port for Gazebo
+EXPOSE 11345
+# Expose port for ROS2-TCP-Endpoint
+EXPOSE 10000
+
+# # Enter the container with and run ur3_setup.sh
+# CMD ["/bin/bash", "-c", "/root/ur3_setup.sh"]
+
+# Enter the container in /bin/bash, print the container ip address so that the host can connect with it and then run ur3_setup.sh 
+# CMD ["/bin/bash", "-c", "echo 'Container IP Address: ' && hostname -I && /root/ur3_setup.sh sim"]
+# CMD ["/bin/bash", "-c", "echo 'Container IP Address: ' && hostname -I && /root/ur3_setup.sh driver ur3e 172.22.2.1"]
+# Run /root/ur3_setup.sh with the argument sim if you want to run the simulation
+# Run /root/ur3_setup.sh with the argument driver if you want to run the driver followed by the ur_type and the ip address of the robot
+
+# # open terminal at /root
+CMD ["/bin/bash"]

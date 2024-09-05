@@ -1,3 +1,97 @@
+: '
+MIT License
+
+Author: Samarth
+Contact: psxs2@nottingham.ac.uk
+
+This code is prepared for the dissertation project at the University of Nottingham.
+The University of Nottingham has governance over this code.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+'
+: '
+This script, `kernel_rt.sh`, is designed to set up a real-time kernel on a Linux system. It includes 
+functions for printing messages in different colors, updating the system, installing necessary packages, 
+and configuring the real-time kernel.
+
+Detailed Explanation:
+1. Define Colors for Output: The script defines color codes for red, green, and yellow to format the 
+   output messages. This helps in distinguishing different types of messages.
+   - Color Definitions:
+     ```sh
+     RED=\'\033[0;31m'
+     GREEN='\033[0;32m'
+     YELLOW='\033[1;33m'
+     ```
+
+2. Print Informational Messages: The script includes a function to print messages in yellow color to 
+   indicate informational messages to the user.
+   - Function:
+     ```sh
+     print_info() {
+         echo -e "${YELLOW}[INFO] $1${NC}"
+     }
+     ```
+
+3. Print Error Messages: The script includes a function to print messages in red color to indicate error 
+   messages to the user.
+   - Function:
+     ```sh
+     print_error() {
+         echo -e "${RED}[ERROR] $1${NC}"
+     }
+     ```
+
+4. Print Success Messages: The script includes a function to print messages in green color to indicate 
+   successful execution messages to the user.
+   - Function:
+     ```sh
+     print_success() {
+         echo -e "${GREEN}[SUCCESS] $1${NC}"
+     }
+     ```
+
+5. Update System: The script updates the system packages to ensure that the latest versions are installed.
+   - Command:
+     ```sh
+     sudo apt update && sudo apt upgrade -y
+     ```
+
+6. Install Real-Time Kernel: The script installs the real-time kernel packages required for real-time 
+   operations.
+   - Command:
+     ```sh
+     sudo apt install linux-image-rt-amd64 linux-headers-rt-amd64 -y
+     ```
+
+7. Reboot System: The script prompts the user to reboot the system to apply the changes.
+   - Command:
+     ```sh
+     sudo reboot
+     ```
+
+How to Invoke the Script:
+To invoke the script, you can run it from the command line. For example:
+```sh
+./kernel_rt.sh
+```
+'
 #!/bin/bash
 
 # Define colors for output
