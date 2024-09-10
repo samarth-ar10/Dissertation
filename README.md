@@ -74,4 +74,11 @@ This project is designed to set up and configure the UR3 robotic arm environment
     ./ur3_setup.sh driver <ur_type> <robot_ip> # for driver
     ``` 
     NOTE: Replace `<ur_type>` with the type of UR robot (e.g., UR3, UR5, UR10) and `<robot_ip>` with the IP address of the robot.
+
+   
+4. **Prepare Unity for ROS-TCP Communication**
+
+   - Install the ROS-TCP Connector in Unity.
+   - Set up the ROS-TCP Connector to connect to the ROS2 nodes running in the Docker container.
+   - NOTE: There is a bug in the ROS-TCP Connector for VR that prevents it from connecting from connecting from any other IP address other than the first one entered from the option in the menu. To fix this, you can add a component to any game object of the ROS-TCP Connector and enter the new IP address.
     
