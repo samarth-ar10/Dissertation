@@ -4,6 +4,8 @@
 
 This project is designed to set up and configure the UR3 robotic arm environment. It includes various functionalities such as running ROS2 nodes, setting up Gazebo simulations, and configuring Docker containers for simulation and development purposes.
 
+This project has been built upon [https://github.com/zhutianqi2006/ur3_unity_ros2_ibvs.git](https://github.com/zhutianqi2006/ur3_unity_ros2_ibvs.git). To replicate this project, switch that project's asset folder with the asset folder in this repository.
+
 ## Project Structure
 
 
